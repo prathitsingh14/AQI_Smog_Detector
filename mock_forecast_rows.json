@@ -1,0 +1,57 @@
+[
+  {
+    "district": "Anand Vihar",
+    "predicted_aqi": 345,
+    "feature_importances": {
+      "fire_count": 0.65,
+      "wind_u": 0.1,
+      "temp": 0.05,
+      "humidity": 0.08,
+      "aerosol_optical_depth": 0.12
+    }
+  },
+  {
+    "district": "Dwarka",
+    "predicted_aqi": 278,
+    "feature_importances": {
+      "fire_count": 0.22,
+      "wind_u": 0.18,
+      "temp": 0.14,
+      "humidity": 0.2,
+      "aerosol_optical_depth": 0.26
+    }
+  },
+  {
+    "district": "R K Puram",
+    "predicted_aqi": 188,
+    "feature_importances": {
+      "fire_count": 0.12,
+      "wind_u": 0.25,
+      "temp": 0.19,
+      "humidity": 0.22,
+      "aerosol_optical_depth": 0.22
+    }
+  },
+  {
+    "district": "Ashok Vihar",
+    "predicted_aqi": 420,
+    "feature_importances": {
+      "fire_count": 0.74,
+      "wind_u": 0.06,
+      "temp": 0.04,
+      "humidity": 0.07,
+      "aerosol_optical_depth": 0.09
+    }
+  },
+  {
+    "district": "Saket",
+    "predicted_aqi": 160,
+    "feature_importances": {
+      "fire_count": 0.09,
+      "wind_u": 0.3,
+      "temp": 0.2,
+      "humidity": 0.18,
+      "aerosol_optical_depth": 0.23
+    }
+  }
+]

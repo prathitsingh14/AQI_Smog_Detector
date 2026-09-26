@@ -1,7 +1,19 @@
 import json
-from google import genai
+import os
+import sys
+
+try:
+    from google import genai
+except Exception:  # pragma: no cover - optional dependency for local mock testing
+    genai = None
+
+try:
+    from google.cloud import translate_v2 as translate
+except Exception:  # pragma: no cover - optional dependency for local mock testing
+    translate = None
+
 from pydantic import BaseModel, Field
-from google.cloud import translate_v2 as translate
+
 
 # ==========================================
 # Day 16: Interoperability Configuration
@@ -43,22 +55,41 @@ class AlertDraft(BaseModel):
 
 def generate_alert(district: str, aqi: float, severity: str, features: dict) -> AlertDraft:
     """
-    Uses Gemini structured outputs to draft a localized natural-language alert 
-    with cause and recommended action[cite: 1, 2].
+    Uses Gemini structured outputs to draft a localized natural-language alert
+    with cause and recommended action. Falls back to a deterministic mock draft
+    when the Google SDK is not available, which keeps the partner workflow
+    executable while the real model is being prepared.
     """
-    client = genai.Client()
-    
+    if genai is None or not os.getenv("GEMINI_API_KEY"):
+        likely_cause = "wind stagnation and localized emissions"
+        if features.get("fire_count", 0) > 0.5:
+            likely_cause = "agricultural burning and stagnant air conditions"
+        elif features.get("wind_u", 0) < 0.2:
+            likely_cause = "wind stagnation and limited dispersion"
+
+        return AlertDraft(
+            district=district,
+            severity=severity,
+            likely_cause=likely_cause,
+            recommended_actions=[
+                "Increase traffic restrictions on high-emission corridors",
+                "Issue a targeted public advisory for vulnerable groups"
+            ]
+        )
+
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
     prompt = f"""
     You are an environmental risk advisor for local authorities. Analyze this 48-hour forecast:
     - District: {district}
     - Predicted AQI: {aqi} ({severity})
     - Feature Importances: {json.dumps(features)}
-    
-    Determine the likely cause (e.g., wind stagnation vs. agricultural burning) and recommend 2 targeted interventions[cite: 2].
+
+    Determine the likely cause (e.g., wind stagnation vs. agricultural burning) and recommend 2 targeted interventions.
     """
-    
+
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-2.0-flash",
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -72,9 +103,19 @@ def generate_alert(district: str, aqi: float, severity: str, features: dict) -> 
 # ==========================================
 def translate_alert(text: str, target_lang: str) -> str:
     """
-    Translates the plain-language English alert into the target language 
-    specified in the configuration file[cite: 1, 2].
+    Translates the plain-language English alert into the target language
+    specified in the configuration file. Falls back to a deterministic Hindi
+    mock when the Google Translate client is unavailable.
     """
+    if translate is None:
+        if target_lang == "hi":
+            return (
+                "अति आवश्यक चेतावनी: AQI अगले 48-72 घंटों में गंभीर स्तर तक पहुंच सकता है. "
+                "उम्मीदवार कारण: हवाओं की कमी और स्थानीय प्रदूषण. तत्काल कदम: ट्रैफिक प्रतिबंध और "
+                "सामुदायिक चेतावनी।"
+            )
+        return text
+
     translate_client = translate.Client()
     result = translate_client.translate(text, target_language=target_lang)
     return result["translatedText"]
@@ -122,15 +163,18 @@ def run_phase_4_pipeline(forecast_row: dict, config: dict) -> dict | None:
 # Execution / Test Case
 # ==========================================
 if __name__ == "__main__":
-    # Mock data output representing the Vertex AI / fallback model forecast[cite: 1, 2]
+    # Mock data output representing the Vertex AI / fallback model forecast.
     mock_bq_forecast = {
         "district": "Anand Vihar",
         "predicted_aqi": 345,
         "feature_importances": {"fire_count": 0.65, "wind_u": 0.1, "temp": 0.05}
     }
-    
-    # Run the pipeline with the mock data and India configuration
+
     alert_payload = run_phase_4_pipeline(mock_bq_forecast, india_config)
-    
+
     if alert_payload:
-        print(json.dumps(alert_payload, indent=2, ensure_ascii=False))
+        payload_text = json.dumps(alert_payload, indent=2, ensure_ascii=False)
+        sys.stdout.reconfigure(encoding='utf-8')
+        print(payload_text)
+    else:
+        print("No alert generated: AQI did not breach configured threshold.")
